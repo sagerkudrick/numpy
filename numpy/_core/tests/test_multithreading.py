@@ -394,19 +394,15 @@ import numpy as np
 import threading
 import random
 import inspect
-
 arr = np.array([1, 2, 3, 4, 5])
 flags = [inspect.BufferFlags.STRIDED, inspect.BufferFlags.READ]
 barrier = threading.Barrier(4)
-
 def func():
     barrier.wait()
     arr.__buffer__(random.choice(flags))
-
 threads = [threading.Thread(target=func) for _ in range(4)]
 for t in threads:
     t.start()
-
 for t in threads:
     t.join()
 """
@@ -414,7 +410,8 @@ for t in threads:
     result = subprocess.run(
         [sys.executable, '-c', code],
         capture_output=True,
-        text=True
+        text=True,
+        env=os.environ.copy()
     )
     
     # Print any output for debugging
