@@ -9,6 +9,8 @@ from numpy._core.tests.test_stringdtype import random_unicode_string_list
 from numpy.testing import IS_64BIT, IS_WASM
 from numpy.testing._private.utils import run_threaded
 
+import inspect
+
 if IS_WASM:
     pytest.skip(allow_module_level=True, reason="no threading support in wasm")
 
@@ -375,3 +377,20 @@ def test_arg_locking(kernel, outcome):
         finally:
             if len(tasks) < 5:
                 b.abort()
+
+def test_barrier_race():
+    import random
+    arr = np.array([1, 2, 3, 4, 5])
+
+    flags = [inspect.BufferFlags.STRIDED, inspect.BufferFlags.READ]
+
+    barrier = threading.Barrier(4)
+    def func():
+        barrier.wait()
+        arr.__buffer__(random.choice(flags))
+
+    threads = [threading.Thread(target=func) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
