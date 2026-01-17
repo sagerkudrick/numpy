@@ -379,6 +379,7 @@ def test_arg_locking(kernel, outcome):
                 b.abort()
 
 def test_barrier_race():
+    # test for TSAN race condition when multiple threads
     import random
     arr = np.array([1, 2, 3, 4, 5])
 
