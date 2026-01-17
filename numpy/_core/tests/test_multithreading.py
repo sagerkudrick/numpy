@@ -2,6 +2,9 @@ import concurrent.futures
 import threading
 import inspect
 import random
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -378,27 +381,53 @@ def test_arg_locking(kernel, outcome):
             if len(tasks) < 5:
                 b.abort()
 
-@pytest.mark.xfail(reason="Expected TSAN race condition; only fails in CI", strict=False)
+@pytest.mark.skipif(
+    'TSAN_OPTIONS' not in os.environ,
+    reason="Only runs under TSAN to detect race conditions"
+)
 def test_buffer_protocol_tsan_race():
     """
-    Tests for race conditions in the buffer protocol when multiple threads 
-    access the same array concurrently. 
+    Tests for race conditions in the buffer protocol.
+    Expects TSAN to detect races when multiple threads access the same array.
 
-    - Does not fail locally.
-    - Triggers CI with TSAN enabled.
+    - Done in a subprocess as TSAN explicitly exits with 66 regardless of pytest
+    - Race condition happens when python code crosses into C code
+    - Doesn't (usually) happen locally...only under TSAN, which CLI has set up
     """
+    code = """
+            import numpy as np
+            import threading
+            import random
+            import inspect
+
+            arr = np.array([1, 2, 3, 4, 5])
+            flags = [inspect.BufferFlags.STRIDED, inspect.BufferFlags.READ]
+            barrier = threading.Barrier(4)
+
+            def func():
+                barrier.wait()
+                arr.__buffer__(random.choice(flags))
+
+            threads = [threading.Thread(target=func) for _ in range(4)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            """
     
-    arr = np.array([1, 2, 3, 4, 5])
-
-    flags = [inspect.BufferFlags.STRIDED, inspect.BufferFlags.READ]
-
-    barrier = threading.Barrier(4)
-    def func():
-        barrier.wait()
-        arr.__buffer__(random.choice(flags))
-
-    threads = [threading.Thread(target=func) for _ in range(4)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    result = subprocess.run(
+        [sys.executable, '-c', code],
+        capture_output=True,
+        text=True
+    )
+    
+    # Seeing if TSAN throws data race error or exits with code 66
+    tsan_detected = (
+        'ThreadSanitizer: data race' in result.stderr or
+        result.returncode == 66
+    )
+    
+    if tsan_detected:
+        pytest.xfail("TSAN detected expected race condition in _buffer_get_info")
+    else:
+        pytest.fail("Expected TSAN to detect race condition, but it didn't")
