@@ -8,6 +8,7 @@ on:
     branches:
       - main
       - maintenance/**
+      - add-buffer-test
     paths-ignore:
       - '**.pyi'
       - '**.md'
