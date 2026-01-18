@@ -1,10 +1,7 @@
 import concurrent.futures
-import threading
 import inspect
 import random
-import os
-import subprocess
-import sys
+import threading
 
 import pytest
 
@@ -383,18 +380,19 @@ def test_arg_locking(kernel, outcome):
 
 def test_buffer_protocol_tsan_race():
     """
-    Tests for race conditions in the buffer protocol when multiple threads 
-    access the same array concurrently. 
+    Tests for race conditions in the buffer protocol when multiple threads
+    access the same array concurrently.
 
     - Does not fail locally.
-    - Triggered CI with TSAN enabled prior to buffer.c update, free threading problem
+    - Triggered CI with TSAN enabled prior to buffer.c update, free threading problem.
     """
-    
+
     arr = np.array([1, 2, 3, 4, 5])
 
     flags = [inspect.BufferFlags.STRIDED, inspect.BufferFlags.READ]
 
     barrier = threading.Barrier(4)
+
     def func():
         barrier.wait()
         arr.__buffer__(random.choice(flags))
