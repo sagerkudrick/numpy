@@ -450,11 +450,16 @@ def make_buffer_list(length):
     current = head
     for i in range(length - 1):
         next_node = BufferInfo()
-        next_node.format = ctypes.create_string_buffer(b"f" * 8)
+        buf = ctypes.create_string_buffer(b"f" * 8)
+        next_node._buf = buf
+        next_node.format = ctypes.cast(buf, ctypes.c_char_p)
         current.next = ctypes.pointer(next_node)
         current = next_node
+
+    buf = ctypes.create_string_buffer(b"f" * 8)
+    current._buf = buf
+    current.format = ctypes.cast(buf, ctypes.c_char_p)
     current.next = None
-    current.format = ctypes.create_string_buffer(b"f" * 8)
     return head
 
 # This simulates the actual _buffer_info_free_untagged
