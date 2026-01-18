@@ -27,7 +27,7 @@ jobs:
     name: Pyodide test
     runs-on: ubuntu-22.04
     # To enable this workflow on a fork, comment out:
-    if: github.repository == 'numpy/numpy'
+    #if: github.repository == 'numpy/numpy'
     steps:
       - name: Checkout NumPy
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
