@@ -60,7 +60,7 @@ permissions:
 jobs:
   openblas32_stable_nightly:
     # To enable this workflow on a fork, comment out:
-    if: github.repository == 'numpy/numpy'
+    #if: github.repository == 'numpy/numpy'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
