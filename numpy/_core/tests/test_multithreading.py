@@ -1,5 +1,7 @@
 import concurrent.futures
 import threading
+import inspect 
+import random
 
 import pytest
 
@@ -402,3 +404,83 @@ def test_buffer_protocol_tsan_race():
     for t in threads:
         t.join()
 
+def read_write_buffer(arr, stop_event):
+    """Continuously read and write to array slices."""
+    while not stop_event.is_set():
+        # Simulate multi-threaded buffer access
+        arr[:100] += 1
+        _ = arr[100:200] * 2
+
+def test_safe_buffer_race():
+    """Stress array operations under concurrent threads."""
+    arr = np.arange(1000, dtype=np.float64)
+
+    stop_event = threading.Event()
+    threads = [threading.Thread(target=read_write_buffer, args=(arr, stop_event))
+               for _ in range(4)]
+
+    # Start threads
+    for t in threads:
+        t.start()
+
+    # Let them run for a short while
+    time.sleep(0.5)
+    stop_event.set()
+
+    for t in threads:
+        t.join()
+
+    # Check array sum for sanity (optional)
+    total = arr.sum()
+    print("Array sum:", total)
+
+
+# Mimic the _buffer_info_t struct for testing
+class BufferInfo(ctypes.Structure):
+    pass
+
+BufferInfo._fields_ = [("next", ctypes.POINTER(BufferInfo)),
+                       ("format", ctypes.c_char_p)]
+
+# Mimic allocations for the test
+def make_buffer_list(length):
+    head = BufferInfo()
+    current = head
+    for i in range(length - 1):
+        next_node = BufferInfo()
+        next_node.format = ctypes.create_string_buffer(b"f" * 8)
+        current.next = ctypes.pointer(next_node)
+        current = next_node
+    current.next = None
+    current.format = ctypes.create_string_buffer(b"f" * 8)
+    return head
+
+# This simulates the actual _buffer_info_free_untagged
+def buffer_info_free_untagged(head):
+    next_node = head
+    while next_node:
+        curr = next_node
+        next_node = curr.next.contents if curr.next else None
+        # Free format (simulated)
+        curr.format = None
+        curr.next = None
+
+@pytest.mark.parametrize("num_threads", [4])
+def test_free_thread_safety(num_threads):
+    """Stress _buffer_info_free_untagged under multiple threads"""
+    lists = [make_buffer_list(10) for _ in range(num_threads)]
+    threads = []
+
+    for i in range(num_threads):
+        t = threading.Thread(target=buffer_info_free_untagged, args=(lists[i],))
+        threads.append(t)
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Simple sanity check
+    for l in lists:
+        assert l.format is None
+        assert l.next is None
