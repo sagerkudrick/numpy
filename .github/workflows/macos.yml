@@ -25,7 +25,7 @@ jobs:
   x86_conda:
     name: macOS x86-64 conda
     # To enable this workflow on a fork, comment out:
-    if: github.repository == 'numpy/numpy'
+    #if: github.repository == 'numpy/numpy'
     runs-on: macos-15-intel
     strategy:
       fail-fast: false
